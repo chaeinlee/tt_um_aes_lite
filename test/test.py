@@ -9,7 +9,7 @@ async def wait_for_ready(dut, timeout=1000):
     """Wait for the ready signal (uio_out[0]) to go high"""
     for _ in range(timeout):
         await RisingEdge(dut.clk)
-        if dut.uio_out.value & 0x01:  # Check bit 0 (ready signal)
+        if int(dut.uio_out.value) & 0x01:  # Check bit 0 (ready signal)
             return True
     return False
 
