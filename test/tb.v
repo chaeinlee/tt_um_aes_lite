@@ -1,6 +1,5 @@
 `default_nettype none
 `timescale 1ns / 1ps
-
 module tb ();
   initial begin
     $dumpfile("tb.vcd");
@@ -42,12 +41,14 @@ module tb ();
   // Clock generation (100MHz)
   always #5 clk = ~clk;
   
-  // FSM State monitor for Test 1 only
+  // FSM State monitor for Test 1 only - ONLY for RTL simulation
+`ifndef GL_TEST
   always @(posedge clk) begin
     if (rst_n && $time > 20 && $time < 500)  // Only during Test 1
       $display("[%0t ns] State=%0d, Round=%0d, Ready=%b", 
                $time, user_project.state, user_project.round_count, uio_out[0]);
   end
+`endif
   
   // Test procedure
   initial begin
