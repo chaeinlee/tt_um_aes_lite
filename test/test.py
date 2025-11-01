@@ -48,7 +48,7 @@ async def test_aes_encryption(dut):
     dut._log.info("Starting AES Test...")
     
     # Set the clock period to 10 ns (100 MHz) - matches Verilog #5 toggle
-    clock = Clock(dut.clk, 10, unit="ns")  # Fixed: changed 'units' to 'unit'
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Initialize all signals
@@ -59,7 +59,7 @@ async def test_aes_encryption(dut):
     dut.rst_n.value = 0
     
     # Wait for initial settling (matches Verilog #20)
-    await Timer(20, unit="ns")  # Fixed: changed 'units' to 'unit'
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 2)
     
