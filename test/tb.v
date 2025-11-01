@@ -1,11 +1,6 @@
 `default_nettype none
 `timescale 1ns / 1ps
 module tb ();
-  initial begin
-    $dumpfile("tb.vcd");
-    $dumpvars(0, tb);
-    #1;
-  end
   
   // Wire up the inputs and outputs:
   reg clk;
@@ -22,9 +17,8 @@ module tb ();
   wire VGND = 1'b0;
 `endif
   
- tt_um_aes_lite user_project (
-      
-     `ifdef GL_TEST
+  tt_um_aes_lite user_project (
+`ifdef GL_TEST
       .VPWR(VPWR),
       .VGND(VGND),
 `endif
@@ -38,10 +32,18 @@ module tb ();
       .rst_n  (rst_n)     // not reset
   );
   
-  // Clock generation (100MHz)
+  // VCD dumping
+  initial begin
+    $dumpfile("tb.vcd");
+    $dumpvars(0, tb);
+    #1;
+  end
+  
+  // Clock generation - always needed
+  initial clk = 0;
   always #5 clk = ~clk;
   
-  // FSM State monitor for Test 1 only - ONLY for RTL simulation
+  // FSM State monitor for Test 1 only - ONLY for RTL simulation, not GL
 `ifndef GL_TEST
   always @(posedge clk) begin
     if (rst_n && $time > 20 && $time < 500)  // Only during Test 1
@@ -49,11 +51,12 @@ module tb ();
                $time, user_project.state, user_project.round_count, uio_out[0]);
   end
 `endif
-  
-  // Test procedure
+
+  // Verilog test procedures - ONLY when NOT using cocotb
+  // The COCOTB_SIM define is set by cocotb automatically
+`ifndef COCOTB_SIM
   initial begin
     // Initialize
-    clk = 0;
     rst_n = 0;
     ena = 1;
     ui_in = 8'h00;
@@ -115,4 +118,6 @@ module tb ();
     $display("ERROR: Timeout!");
     $finish;
   end
+`endif
+
 endmodule
