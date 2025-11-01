@@ -3,14 +3,19 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, RisingEdge
+from cocotb.triggers import ClockCycles, RisingEdge, Timer
 
 async def wait_for_ready(dut, timeout=1000):
     """Wait for the ready signal (uio_out[0]) to go high"""
     for _ in range(timeout):
         await RisingEdge(dut.clk)
-        if int(dut.uio_out.value) & 0x01:  # Check bit 0 (ready signal)
-            return True
+        try:
+            uio_out_val = int(dut.uio_out.value)
+            if uio_out_val & 0x01:  # Check bit 0 (ready signal)
+                return True
+        except ValueError:
+            # Handle X or Z values during simulation
+            continue
     return False
 
 async def run_aes_test(dut, data, key, test_name):
@@ -30,45 +35,53 @@ async def run_aes_test(dut, data, key, test_name):
     ready = await wait_for_ready(dut, timeout=1000)
     
     if ready:
-        result = dut.uo_out.value
+        result = int(dut.uo_out.value)
         dut._log.info(f"Result: 0x{result:02X}")
         return result
     else:
-        dut._log.error(f"Timeout waiting for ready signal!")
+        dut._log.error(f"Timeout waiting for ready signal in {test_name}!")
         return None
 
 @cocotb.test()
-async def test_project(dut):
+async def test_aes_encryption(dut):
+    """Test AES encryption with multiple test vectors"""
     dut._log.info("Starting AES Test...")
     
-    # Set the clock period to 10 ns (100 MHz)
-    clock = Clock(dut.clk, 10, unit="ns")
+    # Set the clock period to 10 ns (100 MHz) - matches Verilog #5 toggle
+    clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
     
-    # Initial reset
-    dut._log.info("Initial Reset")
+    # Initialize all signals
+    dut._log.info("Initializing signals")
     dut.ena.value = 1
     dut.ui_in.value = 0
     dut.uio_in.value = 0
     dut.rst_n.value = 0
-    await ClockCycles(dut.clk, 10)
+    
+    # Wait for initial settling (matches Verilog #20)
+    await Timer(20, units="ns")
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 2)
     
     # Test 1: Data=0xAA, Key=0x55
     result1 = await run_aes_test(dut, 0xAA, 0x55, "Test 1")
+    await ClockCycles(dut.clk, 2)
     
     # Test 2: Data=0x12, Key=0x34
     result2 = await run_aes_test(dut, 0x12, 0x34, "Test 2")
+    await ClockCycles(dut.clk, 2)
     
     # Test 3: Data=0xFF, Key=0xFF
     result3 = await run_aes_test(dut, 0xFF, 0xFF, "Test 3")
+    await ClockCycles(dut.clk, 2)
     
     # Test 4: Data=0x00, Key=0x00
     result4 = await run_aes_test(dut, 0x00, 0x00, "Test 4")
+    await ClockCycles(dut.clk, 2)
     
     # Test 5: Pattern Test Data=0x5A, Key=0xA5
     result5 = await run_aes_test(dut, 0x5A, 0xA5, "Test 5")
+    await ClockCycles(dut.clk, 2)
     
     # Verify all tests completed
     assert result1 is not None, "Test 1 failed to complete"
@@ -78,6 +91,12 @@ async def test_project(dut):
     assert result5 is not None, "Test 5 failed to complete"
     
     dut._log.info("All tests complete!")
+    dut._log.info(f"Test Results Summary:")
+    dut._log.info(f"  Test 1 (AA/55): 0x{result1:02X}")
+    dut._log.info(f"  Test 2 (12/34): 0x{result2:02X}")
+    dut._log.info(f"  Test 3 (FF/FF): 0x{result3:02X}")
+    dut._log.info(f"  Test 4 (00/00): 0x{result4:02X}")
+    dut._log.info(f"  Test 5 (5A/A5): 0x{result5:02X}")
     
-    # Wait a bit before finishing
+    # Wait before finishing (matches Verilog #200)
     await ClockCycles(dut.clk, 20)
