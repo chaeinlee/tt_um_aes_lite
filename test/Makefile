@@ -7,6 +7,9 @@ TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = tt_um_aes_lite.v
 
+# Define COCOTB_SIM for the testbench to detect cocotb is running
+COMPILE_ARGS += -DCOCOTB_SIM
+
 ifneq ($(GATES),yes)
 
 # RTL simulation:
